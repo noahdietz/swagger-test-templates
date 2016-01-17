@@ -1,0 +1,58 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "version": "0.0.1",
+        "title": "Hello World App"
+    },
+    "host": "localhost:10010",
+    "basePath": "/",
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "securityDefinitions": {
+        "key": {
+            "type": "apiKey",
+            "in": "query",
+            "name": "accessToken"
+        }
+    },
+    "security": [
+        {
+            "key": []
+        }
+    ],
+    "paths": {
+        "/hello": {
+            "get": {
+                "description": "Returns 'Hello' to the caller",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "description": "The name of the person to whom to say hello",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "test",
+                        "in": "query",
+                        "required": false,
+                        "type": "number"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        }
+    }
+}

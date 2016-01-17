@@ -8,9 +8,9 @@
       api.head('{{pathify path pathParams}}')
       {{#ifCond queryParameters queryApiKey}}
       .query({
-        {{#if queryApiKey}}
-        {{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},
-        {{/if}}{{/if}}{{#if queryParameters}}{{#each queryParameters}}{{this.name}}: 'DATA GOES HERE'{{#unless @last}},{{/unless}}{{/each}}{{/if}}
+        {{#if queryApiKey}}{{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},
+        {{/if}}{{/if}}{{#if queryParameters}}{{#each queryParameters}}{{this.name}}: {{querify ../path this.name ../queryVals}}{{#unless @last}},
+        {{/unless}}{{/each}}{{/if}}
       })
       {{/ifCond}}
       {{#if headerSecurity}}
