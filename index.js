@@ -32,6 +32,7 @@ var read = require('fs').readFileSync;
 var _ = require('lodash');
 var strObj = require('string');
 var join = require('path').join;
+var url = require('url');
 var len;
 
 /**
@@ -79,12 +80,18 @@ function getData(swagger, path, operation, response, config, info) {
     loadName: '',
     requests: 0,
     concurrent: 0,
-    pathParams: {}
+    pathParams: {},
+    queryVals: {}
   };
 
   // get pathParams from config
   if (config.pathParams) {
     data.pathParams = config.pathParams;
+  }
+
+  // get query string params from config
+  if (config.queryVals) {
+    data.queryVals = config.queryVals;
   }
 
   // cope with loadTest info
@@ -627,4 +634,33 @@ handlebars.registerHelper('length', function(description) {
       'requires path to be a string');
   }
   return strObj(description).truncate(len - 50).s;
+});
+
+/**
+ * replaces query string params with an obvious indicator or given value
+ * @param {string} path request path to be querified
+ * @param {string} paramName name of the query param to be querifed
+ * @param {Object} queryVals given query param values
+ * @returns {Object} value of query string parameters or obvious indicators
+ */
+handlebars.registerHelper('querify', function(path, paramName, queryVals) {
+  var parsed;
+
+  if (arguments.length < 4) {
+    throw new Error('Handlebar Helper \'querify\'' +
+    ' needs 3 parameters');
+  }
+
+  parsed = url.parse(path);
+  if (queryVals[parsed.path]) {
+    if (queryVals[parsed.path][paramName]) {
+      if ((typeof queryVals[parsed.path][paramName]) === 'string') {
+        return '\'' + queryVals[parsed.path][paramName] + '\'';
+      } else {
+        return queryVals[parsed.path][paramName];
+      }
+    }
+  }
+
+  return '\'DATA GOES HERE\'';
 });
