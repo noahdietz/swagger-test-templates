@@ -25,7 +25,16 @@ var config = {
   maxLen: 80,
   queryVals: {
     '/user': {
-      name: 'John Doe'
+      name: 'John'
+    }
+  },
+  bodyVals: {
+    '/user': {
+      info: {
+        id: 123,
+        age: 12,
+        lastName: 'Doe'
+      }
     }
   }
 };
@@ -45,6 +54,7 @@ stt.testGen(swagger, config);
 * **`loadTest`** *optional*: List of objects info in your Swagger API spec used to generate stress tests. If specify, pathName & operation are **required**. Optional fields requests defaults to `1000`, concurrent defaults to `100`.
 * **`maxLen`** *optional*: Maximum line length. Defaults to `80`.
 * **`queryVals`** *optional*: Values to be populated in query string params on a path-by-path basis.
+* **`bodyVals`** *optional*: Values to be populated in body params on a path-by-path basis.
 
 #### Return value
 An array in which each string is content of a test file and the file name. Use this information to write those files to disk.

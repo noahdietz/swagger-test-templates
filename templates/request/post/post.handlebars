@@ -24,7 +24,7 @@
         {{#is contentType 'application/json'}}
         json: {
           {{#each bodyParameters}}
-          {{this.name}}: 'DATA GOES HERE'{{#unless @last}},{{/unless}}
+          {{this.name}}: {{bodify ../../path this.name ../../bodyVals}}{{#unless @last}},{{/unless}}
           {{/each}}
         }
       },
@@ -32,7 +32,7 @@
         {{#is contentType 'application/x-www-form-urlencoded'}}
         form: {
           {{#each formParameters}}
-          {{this.name}}: 'DATA GOES HERE'{{#unless @last}},{{/unless}}
+          {{this.name}}: {{bodify ../../path this.name ../../bodyVals}}{{#unless @last}},{{/unless}}
           {{/each}}
         }
       },
@@ -40,7 +40,7 @@
         {{#is contentType 'multipart/form-data'}}
         form: {
           {{#each formParameters}}
-          {{this.name}}: 'DATA GOES HERE'{{#unless @last}},{{/unless}}
+          {{this.name}}: {{bodify ../../path this.name ../../bodyVals}}{{#unless @last}},{{/unless}}
           {{/each}}
         }
       },
