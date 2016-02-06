@@ -81,7 +81,8 @@ function getData(swagger, path, operation, response, config, info) {
     requests: 0,
     concurrent: 0,
     pathParams: {},
-    queryVals: {}
+    queryVals: {},
+    bodyVals: {}
   };
 
   // get pathParams from config
@@ -92,6 +93,10 @@ function getData(swagger, path, operation, response, config, info) {
   // get query string params from config
   if (config.queryVals) {
     data.queryVals = config.queryVals;
+  }
+
+  if (config.bodyVals) {
+    data.bodyVals = config.bodyVals;
   }
 
   // cope with loadTest info
@@ -636,6 +641,34 @@ handlebars.registerHelper('length', function(description) {
   return strObj(description).truncate(len - 50).s;
 });
 
+// http://goo.gl/7DbFS
+function prettyPrintJson(obj, indent) {
+  var result = '';
+
+  if (indent == null) indent = '';
+
+  for (var property in obj) {
+    if (property.charAt(0) !== '_') {
+      var value = obj[property];
+
+      if (typeof value === 'string') {
+        value = '\'' + value + '\'';
+      } else if (typeof value === 'object') {
+        if (value instanceof Array) {
+          value = '[ ' + value + ' ]';
+        } else {
+          // Recursive dump
+          var od = prettyPrintJson(value, indent + '  ');
+
+          value = '{\n' + od + '\n' + indent + '}';
+        }
+      }
+      result += indent + property + ': ' + value + ',\n';
+    }
+  }
+  return result.replace(/,\n$/, '');
+}
+
 /**
  * replaces query string params with an obvious indicator or given value
  * @param {string} path request path to be querified
@@ -658,6 +691,39 @@ handlebars.registerHelper('querify', function(path, paramName, queryVals) {
         return '\'' + queryVals[parsed.path][paramName] + '\'';
       } else {
         return queryVals[parsed.path][paramName];
+      }
+    }
+  }
+
+  return '\'DATA GOES HERE\'';
+});
+
+/**
+ * replaces body parameters with an obvious indicator or given values
+ * @param {string} path request path to be bodified
+ * @param {string} paramName name of the body param to be bodified
+ * @param {Object} bodyVals given body param values
+ * @returns {Object} value of body parameter or obvious indicator
+ */
+handlebars.registerHelper('bodify', function(path, paramName, bodyVals) {
+  var parsed;
+
+  if (arguments.length < 4) {
+    throw new Error('Handlebar Helper \'bodify\'' +
+    ' needs 3 parameters');
+  }
+
+  parsed = url.parse(path);
+  if (bodyVals[parsed.path]) {
+    if (bodyVals[parsed.path][paramName]) {
+      if ((typeof bodyVals[parsed.path][paramName]) === 'string') {
+        return '\'' + bodyVals[parsed.path][paramName] + '\'';
+      } else if ((typeof bodyVals[parsed.path][paramName]) === 'object') {
+        return '{\n' +
+          prettyPrintJson(bodyVals[parsed.path][paramName], '            ')
+          + '\n          }';
+      } else {
+        return bodyVals[parsed.path][paramName];
       }
     }
   }
