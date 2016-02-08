@@ -1,0 +1,87 @@
+        {{#validateResponse returnType noSchema}}
+  /*eslint-disable*/
+        {{> schema-partial this}}
+
+        /*eslint-enable*/
+        api.patch({{pathify path pathParams deps}})
+        {{else}}
+  api.patch({{pathify path pathParams deps}})
+        {{/validateResponse}}
+        {{#ifCond queryParameters queryApiKey}}
+        .query({
+          {{#if queryApiKey}}{{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},
+          {{/if}}{{/if}}{{#if queryParameters}}{{#each queryParameters}}{{this.name}}: {{querify ../path this.name ../queryVals ../deps}}{{#unless @last}},
+          {{/unless}}{{/each}}{{/if}}
+        })
+        {{/ifCond}}
+        {{#if headerSecurity}}
+        .set('Authorization', '{{headerSecurity.type}} ' + process.env.{{headerSecurity.name}})
+        {{/if}}
+        .set('Accept', '{{contentType}}')
+        {{#if headerParameters}}
+        .set({
+          {{#each headerParameters}}
+          '{{this.name}}': 'DATA GOES HERE'{{#unless @last}},{{/unless}}
+          {{/each}}
+        })
+        {{/if}}
+        {{#if headerApiKey}}
+        .set('{{headerApiKey.type}}', process.env.{{headerApiKey.name}})
+        {{/if}}
+        {{#is contentType 'application/json'}}
+        .send({
+          {{#each bodyParameters}}
+          {{this.name}}: {{bodify ../../path this.name ../../bodyVals ../../deps}}{{#unless @last}},{{/unless}}
+          {{/each}}
+        })
+        {{/is}}
+        {{#is contentType 'application/x-www-form-urlencoded'}}
+        .send({
+        {{#each formParameters}}
+            {{this.name}}: {{bodify ../../path this.name ../../bodyVals ../../deps}}{{#unless @last}},{{/unless}}
+        {{/each}}
+        })
+        {{/is}}
+        {{#is contentType 'multipart/form-data'}}
+        .send({
+        {{#each formParameters}}
+            {{this.name}}: {{bodify ../../path this.name ../../bodyVals ../../deps}}{{#unless @last}},{{/unless}}
+        {{/each}}
+        })
+        {{/is}}
+        {{#if default}}
+        .expect('DEFAULT RESPONSE CODE HERE')
+        {{else}}
+        .expect({{responseCode}})
+        {{/if}}
+        .end(function(err, res) {
+          if (err) {
+            return cb(new Error(err.message +
+              ' | erroneous call - {{extractPath path}} PATCH'));
+          }
+
+          {{#validateResponse returnType noSchema}}
+          {{#is ../assertion 'expect'}}
+          expect(validator.validate(res.body, schema)).to.be.true;
+          {{/is}}
+          {{#is ../assertion 'should'}}
+          validator.validate(res.body, schema).should.be.true;
+          {{/is}}
+          {{#is ../assertion 'assert'}}
+          assert.true(validator.validate(res.body, schema));
+          {{/is}}
+          {{else}}
+          {{#is ../assertion 'expect'}}
+          expect(res.body).to.equal(null); // non-json response or no schema
+          {{/is}}
+          {{#is ../assertion 'should'}}
+          res.body.should.equal(null); // non-json response or no schema
+          {{/is}}
+          {{#is ../assertion 'assert'}}
+          assert.isNull(res.body); // non-json response or no schema
+          {{/is}}
+          {{/validateResponse}}
+
+          deps.{{step}} = res.body;
+          cb(null);
+        });

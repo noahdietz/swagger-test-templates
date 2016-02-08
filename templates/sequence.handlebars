@@ -1,0 +1,42 @@
+'use strict';
+var async = require('async');
+var chai = require('chai');{{#if importValidator}}
+var ZSchema = require('z-schema');
+var validator = new ZSchema({});{{/if}}
+{{#is testmodule 'request'}}
+var request = require('request');
+{{/is}}
+{{#is testmodule 'supertest'}}
+var supertest = require('supertest');
+var api = supertest('{{scheme}}://{{host}}'); // supertest init;
+{{/is}}
+{{#is assertion 'expect'}}
+var expect = chai.expect;
+{{/is}}
+var deps = {};
+{{#is assertion 'should'}}
+
+chai.should();
+{{/is}}
+{{#is assertion 'assert'}}
+var assert = chai.assert;
+{{/is}}
+{{#if importEnv}}
+
+require('dotenv').load();
+{{/if}}
+
+describe('{{name}} sequence test', function() {
+  it('should complete the sequence without err', function(done) {
+    async.series([
+      {{#each tests}}
+      function(cb) {
+      {{this}}
+      }{{#unless @last}},{{/unless}}
+      {{/each}}
+    ],
+    function(err) {
+      done(err);
+    });
+  });
+});

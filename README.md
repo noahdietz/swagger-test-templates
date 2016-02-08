@@ -36,6 +36,31 @@ var config = {
         lastName: 'Doe'
       }
     }
+  },
+  sequences: {
+    seq1: [
+      {
+        step: 'create',
+        path: '/user',
+        op: 'post'
+      },
+      {
+        step: 'update',
+        path: '/user/{id},
+        op: 'patch',
+        deps: {
+          'create': ['id']
+        }
+      },
+      {
+        step: 'delete',
+        path: '/user/{id},
+        op: 'delete',
+        deps: {
+          'update': ['id']
+        }
+      }
+    ]
   }
 };
 
@@ -55,6 +80,7 @@ stt.testGen(swagger, config);
 * **`maxLen`** *optional*: Maximum line length. Defaults to `80`.
 * **`queryVals`** *optional*: Values to be populated in query string params on a path-by-path basis.
 * **`bodyVals`** *optional*: Values to be populated in body params on a path-by-path basis.
+* **`sequences`** *optional*: Sets of sequence tests to generate tests for.
 
 #### Return value
 An array in which each string is content of a test file and the file name. Use this information to write those files to disk.

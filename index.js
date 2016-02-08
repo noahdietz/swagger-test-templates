@@ -38,7 +38,7 @@ var len;
 /**
  * To check if it is an empty array or undefined
  * @private
- * @param  {array/object} val an array to be checked
+ * @param  {array} val an array to be checked
  * @returns {boolean} return true is the array is not empty nor undefined
  */
 function isEmpty(val) {
@@ -128,7 +128,7 @@ function getData(swagger, path, operation, response, config, info) {
         case 'apiKey':
           if (securityType.in === 'query') {
             data.queryApiKey =
-            {name: element, type: securityType.name};
+            {name: element, type: _.camelCase(securityType.name)};
           } else if (securityType.in === 'header') {
             data.headerApiKey =
             {name: element, type: securityType.name};
@@ -417,6 +417,84 @@ function testGenPath(swagger, path, config) {
   return output;
 }
 
+function compileSeqTemplates(config) {
+  var res;
+
+  res = {
+    get: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/get/get.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    delete: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/delete/delete.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    head: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/head/head.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    patch: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/patch/patch.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    post: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/post/post.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    put: handlebars.compile(
+      read(join(__dirname, '/templates',
+        config.testModule, '/put/put.seq.handlebars'), 'utf8'),
+      {noEscape: true}),
+    seq: handlebars.compile(
+      read(join(__dirname, '/templates/sequence.handlebars'), 'utf8'),
+      {noEscape: true})
+  };
+
+  return res;
+}
+
+function testGenSeq(swagger, seq, templates, config, seqName) {
+  var calls = [];
+  var data;
+  var resp = '200';
+  var info;
+
+  info = {
+    security: swagger.security ? swagger.security : [],
+    importValidator: true
+  };
+
+  _.forEach(seq, function(callObj) {
+    data = getData(swagger, callObj.path, callObj.op,
+      resp, config, info);
+
+    data.contentType = TYPE_JSON;
+    data.returnType = TYPE_JSON;
+
+    data.step = callObj.step;
+    data.deps = callObj.deps;
+
+    calls.push(templates[callObj.op](data));
+  });
+
+  if (info.security && info.security.length !== 0) {
+    info.importEnv = true;
+  }
+
+  data = {
+    assertion: config.assertionFormat,
+    testmodule: config.testModule,
+    scheme: (swagger.schemes !== undefined ? swagger.schemes[0] : 'http'),
+    host: (swagger.host !== undefined ? swagger.host : 'localhost:10010'),
+    name: seqName,
+    tests: calls,
+    importValidator: info.importValidator,
+    importEnv: info.importEnv
+  };
+
+  return templates.seq(data);
+}
+
 /**
  * Builds unit test stubs for all paths specified by the configuration
  * @public
@@ -435,6 +513,8 @@ function testGen(swagger, config) {
   var schemaTemp;
   var environment;
   var ndx = 0;
+  var seqTemps;
+  var genSeq;
 
 
   source = read(join(__dirname, 'templates/schema.handlebars'), 'utf8');
@@ -457,6 +537,15 @@ function testGen(swagger, config) {
     // loops over specified paths from config
     _.forEach(targets, function(target) {
       result.push(testGenPath(swagger, target, config));
+    });
+  }
+
+  // there are specified sequence tests
+  if (config.sequences) {
+    seqTemps = compileSeqTemplates(config);
+
+    _.forEach(config.sequences, function(seq) {
+      result.push(testGenSeq(swagger, seq, seqTemps, config));
     });
   }
 
@@ -495,6 +584,19 @@ function testGen(swagger, config) {
       output.push({
         name: filename,
         test: result[ndx++]
+      });
+    });
+  }
+
+  if (config.sequences) {
+    seqTemps = compileSeqTemplates(config);
+
+    _.forEach(config.sequences, function(seq, key) {
+      genSeq = testGenSeq(swagger, seq, seqTemps, config, key);
+
+      output.push({
+        name: key + '-sequence-test.js',
+        test: genSeq
       });
     });
   }
@@ -565,19 +667,47 @@ handlebars.registerHelper('validateResponse', function(type, noSchema,
   }
 });
 
+handlebars.registerHelper('extractPath', function(path) {
+  var parsed;
+  var reClose = new RegExp(/(?:%7D)/g);
+  var reOpen = new RegExp(/(?:%7B)/g);
+
+  if (arguments.length < 2) {
+    throw new Error('Handlebars Helper \'extractPath\'' +
+      ' needs 1 parameters');
+  }
+
+  if ((typeof path) !== 'string') {
+    throw new TypeError('Handlebars Helper \'extractPath\'' +
+      'requires path to be a string');
+  }
+
+  parsed = url.parse(path);
+  parsed.path = parsed.path.replace(reClose, '}').replace(reOpen, '{');
+
+  return parsed.path;
+});
+
 /**
  * replaces path params with obvious indicator for filling values
  * (i.e. if any part of the path is surrounded in curly braces {})
  * @param  {string} path  request path to be pathified
  * @param  {object} pathParams contains path parameters to replace with
+ * @param  {object} [deps] specified dependencies for this API call
  * @returns {string}          pathified string
  */
-handlebars.registerHelper('pathify', function(path, pathParams) {
+handlebars.registerHelper('pathify', function(path, pathParams, deps) {
   var r;
+  var re = new RegExp(/(?:\{+)(.*?(?=\}))(?:\}+)/g);
+  var re2;
+  var matches = [];
+  var match;
+  var m = re.exec(path);
+  var i;
 
   if (arguments.length < 3) {
     throw new Error('Handlebars Helper \'pathify\'' +
-      ' needs 2 parameters');
+      ' needs at least 2 parameters');
   }
 
   if ((typeof path) !== 'string') {
@@ -590,20 +720,25 @@ handlebars.registerHelper('pathify', function(path, pathParams) {
       'requires pathParams to be an object');
   }
 
-  if (Object.keys(pathParams).length > 0) {
-    var re = new RegExp(/(?:\{+)(.*?(?=\}))(?:\}+)/g);
-    var re2;
-    var matches = [];
-    var m = re.exec(path);
-    var i;
+  function depsReplace(key) {
+    if (_.includes(deps[key], match)) {
+      path = path.replace(re2, '\' + deps.' +
+        key + '.' + match + ' + \'');
 
+      return path;
+    } else {
+      path = path.replace(re2, '{' + match + ' PARAM GOES HERE}');
+    }
+  }
+
+  if (Object.keys(pathParams).length > 0 || deps !== undefined) {
     while (m) {
       matches.push(m[1]);
       m = re.exec(path);
     }
 
     for (i = 0; i < matches.length; i++) {
-      var match = matches[i];
+      match = matches[i];
 
       re2 = new RegExp('(\\{+)' + match + '(?=\\})(\\}+)');
 
@@ -611,16 +746,18 @@ handlebars.registerHelper('pathify', function(path, pathParams) {
           pathParams[match] !== null) {
         // console.log("Match found for "+match+": "+pathParams[match]);
         path = path.replace(re2, pathParams[match]);
+      } else if (deps !== undefined) {
+        Object.keys(deps).forEach(depsReplace);
       } else {
         // console.log("No match found for "+match+": "+pathParams[match]);
         path = path.replace(re2, '{' + match + ' PARAM GOES HERE}');
       }
     }
-    return path;
+    return '\'' + path + '\'';
   }
 
   r = new RegExp(/(?:\{+)(.*?(?=\}))(?:\}+)/g);
-  return path.replace(r, '{$1 PARAM GOES HERE}');
+  return '\'' + path.replace(r, '{$1 PARAM GOES HERE}') + '\'';
 });
 
 /**
@@ -674,14 +811,16 @@ function prettyPrintJson(obj, indent) {
  * @param {string} path request path to be querified
  * @param {string} paramName name of the query param to be querifed
  * @param {Object} queryVals given query param values
+ * @param  {object} [deps] specified dependencies for this API call
  * @returns {Object} value of query string parameters or obvious indicators
  */
-handlebars.registerHelper('querify', function(path, paramName, queryVals) {
+handlebars.registerHelper('querify',
+  function(path, paramName, queryVals, deps) {
   var parsed;
 
   if (arguments.length < 4) {
     throw new Error('Handlebar Helper \'querify\'' +
-    ' needs 3 parameters');
+    ' needs at least 3 parameters');
   }
 
   parsed = url.parse(path);
@@ -691,6 +830,12 @@ handlebars.registerHelper('querify', function(path, paramName, queryVals) {
         return '\'' + queryVals[parsed.path][paramName] + '\'';
       } else {
         return queryVals[parsed.path][paramName];
+      }
+    }
+  } else if (deps) {
+    for (var key in deps) {
+      if (_.includes(deps[key], paramName)) {
+        return 'deps.' + key + '.' + paramName;
       }
     }
   }
@@ -703,17 +848,20 @@ handlebars.registerHelper('querify', function(path, paramName, queryVals) {
  * @param {string} path request path to be bodified
  * @param {string} paramName name of the body param to be bodified
  * @param {Object} bodyVals given body param values
+ * @param  {object} [deps] specified dependencies for this API call
  * @returns {Object} value of body parameter or obvious indicator
  */
-handlebars.registerHelper('bodify', function(path, paramName, bodyVals) {
+handlebars.registerHelper('bodify', function(path, paramName, bodyVals, deps) {
   var parsed;
 
   if (arguments.length < 4) {
     throw new Error('Handlebar Helper \'bodify\'' +
-    ' needs 3 parameters');
+    ' needs at least 3 parameters');
   }
 
   parsed = url.parse(path);
+  parsed.path = parsed.path.replace('%7D', '}').replace('%7B', '{');
+
   if (bodyVals[parsed.path]) {
     if (bodyVals[parsed.path][paramName]) {
       if ((typeof bodyVals[parsed.path][paramName]) === 'string') {
@@ -724,6 +872,12 @@ handlebars.registerHelper('bodify', function(path, paramName, bodyVals) {
           + '\n          }';
       } else {
         return bodyVals[parsed.path][paramName];
+      }
+    }
+  } else if (deps) {
+    for (var key in deps) {
+      if (_.includes(deps[key], paramName)) {
+        return 'deps.' + key + '.' + paramName;
       }
     }
   }
