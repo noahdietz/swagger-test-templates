@@ -1,0 +1,44 @@
+        {{#validateResponse returnType noSchema}}
+  /*eslint-disable*/
+        {{> schema-partial this}}
+
+        /*eslint-enable*/
+        api.head({{pathify path pathParams deps}})
+        {{else}}
+  api.head({{pathify path pathParams deps}})
+        {{/validateResponse}}
+        {{#ifCond queryParameters queryApiKey}}
+        .query({
+          {{#if queryApiKey}}{{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},
+          {{/if}}{{/if}}{{#if queryParameters}}{{#each queryParameters}}{{this.name}}: {{querify ../path this.name ../queryVals ../deps}}{{#unless @last}},
+          {{/unless}}{{/each}}{{/if}}
+        })
+        {{/ifCond}}
+        {{#if headerSecurity}}
+        .set('Authorization', '{{headerSecurity.type}} ' + process.env.{{headerSecurity.name}})
+        {{/if}}
+        .set('Accept', '{{contentType}}')
+        {{#if headerParameters}}
+        .set({
+          {{#each headerParameters}}
+          '{{this.name}}': 'DATA GOES HERE'{{#unless @last}},{{/unless}}
+          {{/each}}
+        })
+        {{/if}}
+        {{#if headerApiKey}}
+        .set('{{headerApiKey.type}}', process.env.{{headerApiKey.name}})
+        {{/if}}
+        {{#if default}}
+        .expect('DEFAULT RESPONSE CODE HERE')
+        {{else}}
+        .expect({{responseCode}})
+        {{/if}}
+        .end(function(err, res) {
+          if (err) {
+            return cb(new Error(err.message +
+              ' | erroneous call - {{extractPath path}} HEAD'));
+          }
+
+          deps.{{step}} = res;
+          cb(null);
+        });

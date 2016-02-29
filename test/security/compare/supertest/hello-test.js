@@ -12,7 +12,7 @@ describe('/hello', function() {
     it('should respond with 200 Will send `Authenticated...', function(done) {
       api.get('/hello')
       .query({
-        Key: process.env.KEY
+        key: process.env.KEY
       })
       .set('Authorization', 'Basic ' + process.env.BASIC_AUTH)
       .set('Accept', 'application/json')

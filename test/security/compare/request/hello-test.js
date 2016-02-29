@@ -12,7 +12,7 @@ describe('/hello', function() {
       request({
         url: 'http://basic.herokuapp.com/hello',
         qs: {
-          Key: process.env.KEY
+          key: process.env.KEY
         },
         method: 'GET',
         headers: {

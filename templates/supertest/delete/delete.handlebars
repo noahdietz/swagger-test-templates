@@ -5,7 +5,7 @@
 
       /*eslint-enable*/
       {{/validateResponse}}
-      api.del('{{pathify path pathParams}}')
+      api.del({{pathify path pathParams}})
       {{#ifCond queryParameters queryApiKey}}
       .query({
         {{#if queryApiKey}}{{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},

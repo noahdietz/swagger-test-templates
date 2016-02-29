@@ -5,7 +5,7 @@
 
       /*eslint-enable*/
       {{/validateResponse}}
-      api.get('{{pathify path pathParams}}')
+      api.get({{pathify path pathParams}})
       {{#ifCond queryParameters queryApiKey}}
       .query({
         {{#if queryApiKey}}{{queryApiKey.type}}: process.env.{{queryApiKey.name}}{{#if queryParameters}},
@@ -66,7 +66,7 @@
         requests: {{requests}},
         concurrentRequests: {{concurrent}},
         targetFunction: function(callback) {
-          api.get('{{pathify path pathParams}}')
+          api.get({{pathify path pathParams}})
           {{#ifCond queryParameters queryApiKey}}
           .query({
             {{#if queryApiKey}}
