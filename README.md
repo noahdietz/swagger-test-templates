@@ -46,7 +46,7 @@ var config = {
       },
       {
         step: 'update',
-        path: '/user/{id},
+        path: '/user/{id}',
         op: 'patch',
         deps: {
           'create': ['id']
@@ -54,7 +54,7 @@ var config = {
       },
       {
         step: 'delete',
-        path: '/user/{id},
+        path: '/user/{id}',
         op: 'delete',
         deps: {
           'update': ['id']
